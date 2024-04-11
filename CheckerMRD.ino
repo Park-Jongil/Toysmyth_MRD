@@ -488,9 +488,12 @@ void Night_Operation() {
   
   // 첫 부팅이 아닌 경우에 서버에 데이터를 보냄(첫 부팅은 이미 이전에 보냈음)
   if (!(bootCount == 1)) {
-    // MIT, 토이스미스 서버에 battery, valve값 송신
-    post_battery_to_server(0);
-    post_valve_to_server(0);
+    if (getbatterydata[0]==0x00 && getvalvedata[0]==0x00) {   // 둘다 무응답 일경우
+      MRD_DataValue_to_Server(0,getvalvedata,NULL,NULL);
+    } else {
+      post_battery_to_server(0);                      // MIT, 토이스미스 서버에 battery값 송신
+      post_valve_to_server(0);                        // MIT, 토이스미스 서버에 valve값 송신
+    }
   }
 
   config_sleep_mode();
@@ -506,8 +509,16 @@ void Night_Operation() {
 void Low_battery() {
   Serial.println("Low Battery State");
   
-  now = rtc.now();
+  if (!(bootCount == 1)) {
+    if (getbatterydata[0]==0x00 && getvalvedata[0]==0x00) {   // 둘다 무응답 일경우
+      MRD_DataValue_to_Server(0,getvalvedata,NULL,NULL);
+    } else {
+      post_battery_to_server(0);                      // MIT, 토이스미스 서버에 battery값 송신
+      post_valve_to_server(0);                        // MIT, 토이스미스 서버에 valve값 송신
+    }
+  }
 
+  now = rtc.now();
   //주간: 4시간 sleep
   if ((07 <= timeinfo.tm_hour) && (timeinfo.tm_hour <= 17)) {
     ATime = now + TimeSpan(0, 4, 0, 0);
@@ -540,8 +551,16 @@ void Low_battery() {
 void Discharge() {
   Serial.println("Discharge State");
   
-  now = rtc.now();
+  if (!(bootCount == 1)) {
+    if (getbatterydata[0]==0x00 && getvalvedata[0]==0x00) {   // 둘다 무응답 일경우
+      MRD_DataValue_to_Server(0,getvalvedata,NULL,NULL);
+    } else {
+      post_battery_to_server(0);                      // MIT, 토이스미스 서버에 battery값 송신
+      post_valve_to_server(0);                        // MIT, 토이스미스 서버에 valve값 송신
+    }
+  }
 
+  now = rtc.now();
   ATime = now + TimeSpan(1, 0, 0, 0);
   AlarmTime = DateTime(ATime.year(), ATime.month(), ATime.day(), ATime.hour(), 58, 0);
 
