@@ -793,11 +793,11 @@ void setup() {
           Night_Operation();
         }
         if (volt < 11.7 && volt >= 11.2) {          // 저전력
-          MRD_Exception_to_Server(NULL,NULL,0x01,"Mode :Low_battery()",NULL,NULL);
+          MRD_Exception_to_Server(NULL,NULL,0x02,"Mode :Low_battery()",NULL,NULL);
           Low_battery();
           break;
         } else if (volt > 0 && volt < 11.2) {       // 방전
-          MRD_Exception_to_Server(NULL,NULL,0x01,"Mode :Discharge()",NULL,NULL);
+          MRD_Exception_to_Server(NULL,NULL,0x02,"Mode :Discharge()",NULL,NULL);
           Discharge();
           break;
         } else {                                    // 정상작동 or 에러
