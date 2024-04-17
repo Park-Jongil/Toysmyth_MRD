@@ -416,11 +416,20 @@ void print_wakeup_reason() {
   wakeup_reason = esp_sleep_get_wakeup_cause();
   switch (wakeup_reason)
   {
-    case ESP_SLEEP_WAKEUP_EXT0     : Serial.println("Wakeup caused by external signal using RTC_IO");           break;
-    case ESP_SLEEP_WAKEUP_EXT1     : Serial.println("Wakeup caused by external signal using Reset_Button");     break;  //this
-    case ESP_SLEEP_WAKEUP_TIMER    : Serial.println("Wakeup caused by timer");                                  break;  //and this
-    case ESP_SLEEP_WAKEUP_TOUCHPAD : Serial.println("Wakeup caused by touchpad");                               break;
-    case ESP_SLEEP_WAKEUP_ULP      : Serial.println("Wakeup caused by ULP program");                            break;
+    case ESP_SLEEP_WAKEUP_EXT0     : Serial.println("Wakeup caused by external signal using RTC_IO");           
+                                     MRD_Exception_to_Server(NULL,NULL,0x02,"Wakeup Reason : RTC_IO",NULL,NULL);
+                                     break;
+    case ESP_SLEEP_WAKEUP_EXT1     : Serial.println("Wakeup caused by external signal using Reset_Button");     
+                                     MRD_Exception_to_Server(NULL,NULL,0x02,"Wakeup Reason : Reset_Button",NULL,NULL);
+                                     break;
+    case ESP_SLEEP_WAKEUP_TIMER    : Serial.println("Wakeup caused by timer");                                  
+                                     break;  //and this
+    case ESP_SLEEP_WAKEUP_TOUCHPAD : Serial.println("Wakeup caused by touchpad");                               
+                                     MRD_Exception_to_Server(NULL,NULL,0x02,"Wakeup Reason : TOUCHPAD",NULL,NULL);
+                                     break;
+    case ESP_SLEEP_WAKEUP_ULP      : Serial.println("Wakeup caused by ULP program");                            
+                                     MRD_Exception_to_Server(NULL,NULL,0x02,"Wakeup Reason : ULP program",NULL,NULL);
+                                     break;
     default                        : Serial.printf("Wakeup was not caused by deep sleep: %d\n", wakeup_reason); break;
   }
 }
