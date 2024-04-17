@@ -148,21 +148,26 @@ void Battery_Read(void) {
   stSendData.Data[2] = 0x0D;
   stSendData.CheckData = cal_checksum((byte*)&stSendData,8);
 
-  iChkRet = MRD_Send_Receive((byte*)&stSendData,(byte*)&stRecvData);
-  if (iChkRet==0x00) {
-    pChkPnt = (Protocol_MRD*)&stRecvData;
-    memcpy(getbatterydata,(byte*)&stRecvData,0x09);
-    battery_value[0] = pChkPnt->Data[0];
-    battery_value[1] = pChkPnt->Data[1];
-    battery_value[2] = pChkPnt->Data[2];
-    if (pChkPnt->Data[0]==0x30 || pChkPnt->Data[0]==0x31) {
-      Serial.println( "Battery_Read Success " );
-      volt = Calculate_Volt(getbatterydata[5],getbatterydata[6],getbatterydata[7]);  
+  volt = 0;
+  do {
+    iChkRet = MRD_Send_Receive((byte*)&stSendData,(byte*)&stRecvData);
+    if (iChkRet==0x00) {
+      pChkPnt = (Protocol_MRD*)&stRecvData;
+      memcpy(getbatterydata,(byte*)&stRecvData,0x09);
+      battery_value[0] = pChkPnt->Data[0];
+      battery_value[1] = pChkPnt->Data[1];
+      battery_value[2] = pChkPnt->Data[2];
+      if (pChkPnt->Cmd0==0xA4 || pChkPnt->Cmd1==0xE0) {
+        Serial.println( "Battery_Read Success " );
+        volt = Calculate_Volt(getbatterydata[5],getbatterydata[6],getbatterydata[7]);  
+      }
+    } else {
+      Serial.print( "Battery_Read Error Code = " );
+      Serial.println( iChkRet );
+      break;
     }
-  } else {
-    Serial.print( "Battery_Read Error Code = " );
-    Serial.println( iChkRet );
-  }
+  }while(volt != 0);
+
   if (iChkRet==0x10) {                  // 무응답일 경우
     memset(getbatterydata,0x00,0x09);   // 데이터 초기화
     getbatterydata[3] = MRD_BATTERY_STATUS; // 예시: 0x01
