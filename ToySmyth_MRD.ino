@@ -258,14 +258,14 @@ void LTE_ON() {
   now = rtc.now();    // 현재 RTC 시간을 확인
   iCurDay = (now.year()*365 + now.month() * 31 + now.day()) * 24 + now.hour();   // 대략적인 월과일 및 시간을 시간단위로 계산
   sprintf(szDateTime,"%d-%02d-%02d %02d:%02d:%02d",now.year(),now.month(),now.day(),now.hour(),now.minute(),now.second());  
-  sprintf(szBuffer,"RTC_Time:[%s] Days = %ld",szDateTime,iCurDay);
+  sprintf(szBuffer,"RTC_Time:[%s] BootCount = %d",szDateTime,bootCount);
   Serial.println(szBuffer);                     // 로그용
   MRD_Exception_to_Server(NULL,NULL,0x01,szBuffer,NULL,NULL);
   
   getLocalTime(&timeinfo);
   sprintf(szDateTime,"%d-%02d-%02d %02d:%02d:%02d",1900+timeinfo.tm_year,timeinfo.tm_mon+1,timeinfo.tm_mday,timeinfo.tm_hour,timeinfo.tm_min,timeinfo.tm_sec);  
   iChkDay = ((timeinfo.tm_year+1900)*365+(timeinfo.tm_mon+1)*31 + timeinfo.tm_mday) * 24 + timeinfo.tm_hour;
-  sprintf(szBuffer,"NTC_Time:[%s] Days = %ld",szDateTime,iCurDay);
+  sprintf(szBuffer,"NTC_Time:[%s]",szDateTime);
   Serial.println(szBuffer);                     // 로그용
   MRD_Exception_to_Server(NULL,NULL,0x01,szBuffer,NULL,NULL);
 
@@ -785,6 +785,7 @@ void setup() {
       post_battery_to_server(0);                      // MIT, 토이스미스 서버에 battery값 송신
       post_valve_to_server(0);                        // MIT, 토이스미스 서버에 valve값 송신
     }
+    MRD_Exception_to_Server(NULL,NULL,0x02,"Device Restart..",NULL,NULL);
   } else {    // 향후 데이터를 항상 서버로 전송할지를 결정
   }
 
