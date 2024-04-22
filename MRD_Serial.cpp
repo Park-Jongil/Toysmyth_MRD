@@ -136,7 +136,7 @@ int  MRD_Send_Receive(unsigned char *pSendData,unsigned char *pRecvvData,int iLi
 void Battery_Read(void) {
   //rs485.begin(9600, SERIAL_8N1, RXD2, TXD2);// 기존에는 작동했지만 어느 순간부터 RS485 begin 함수가 2번 나오면 노딕보드가 멈추는 현상이 나타남.
   Protocol_MRD  stSendData,stRecvData,*pChkPnt=NULL;
-  int     iChkRet;
+  int     iChkRet,iCount;
 
   stSendData.STX = 0x7C;
   stSendData.ZoneID = iZoneID;
@@ -149,6 +149,7 @@ void Battery_Read(void) {
   stSendData.CheckData = cal_checksum((byte*)&stSendData,8);
 
   volt = 0;
+  iCount = 0;
   do {
     iChkRet = MRD_Send_Receive((byte*)&stSendData,(byte*)&stRecvData);
     if (iChkRet==0x00) {
@@ -160,13 +161,14 @@ void Battery_Read(void) {
       if (pChkPnt->Cmd0==0xA4 && pChkPnt->Cmd1==0xE0) {
         Serial.println( "Battery_Read Success " );
         volt = Calculate_Volt(getbatterydata[5],getbatterydata[6],getbatterydata[7]);  
+        break;
       }
     } else {
       Serial.print( "Battery_Read Error Code = " );
       Serial.println( iChkRet );
       break;
     }
-  }while(volt != 0);
+  }while(++iCount < 5);   // iChkRet==0x00(데이터는 수신) 이면서 정상적인 값이 아닐경우 총 5회 반복수행.
 
   if (iChkRet==0x10) {                  // 무응답일 경우
     memset(getbatterydata,0x00,0x09);   // 데이터 초기화

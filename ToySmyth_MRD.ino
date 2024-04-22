@@ -785,7 +785,7 @@ void setup() {
       post_battery_to_server(0);                      // MIT, 토이스미스 서버에 battery값 송신
       post_valve_to_server(0);                        // MIT, 토이스미스 서버에 valve값 송신
     }
-    MRD_Exception_to_Server(NULL,NULL,0x02,"Device Restart..",NULL,NULL);
+    //MRD_Exception_to_Server(NULL,NULL,0x02,"Device Restart..",NULL,NULL);
   } else {    // 향후 데이터를 항상 서버로 전송할지를 결정
   }
 
