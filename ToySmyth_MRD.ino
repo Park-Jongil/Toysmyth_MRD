@@ -811,7 +811,7 @@ void setup() {
           Discharge();
           break;
         } else {                                    // 정상작동 or 에러
-          if (10 <= timeinfo.tm_min && timeinfo.tm_min < 58) {               // 58분 이전
+          if (10 <= timeinfo.tm_min && timeinfo.tm_min < 56) {               // 56분 이전
             MRD_Exception_to_Server(NULL,NULL,0x01,"Mode :Not_Yet()",NULL,NULL);
             Not_Yet();
             break;
