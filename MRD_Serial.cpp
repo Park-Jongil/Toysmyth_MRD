@@ -110,6 +110,13 @@ int  MRD_Send_Receive(unsigned char *pSendData,unsigned char *pRecvvData,int iLi
     if ((pSendData[3]==0xA3 && pSendData[4]==0xC7) || (pSendData[3]==0xA8 && pSendData[4]==0xC7)) delay(35000);
     delay(100);
     pChkPnt = (Protocol_MRD*)MRD_ReceiveData(iLimitTime);      // 기본 10,000 ms 대기
+    if (pChkPnt != NULL) {
+      if (pChkPnt->Cmd0==0xB1 && (pChkPnt->Cmd1==0xE0 || pChkPnt->Cmd1==0xE1)) {    // 알람코드일경우 재수신여부 확인
+        if (rs485.available() > 0) {    // 추가적인 데이터가 남아있다면
+          pChkPnt = (Protocol_MRD*)MRD_ReceiveData(iLimitTime);      // 기본 10,000 ms 대기
+        }
+      }
+    }
     iRetryCount++;
   }while(pChkPnt==NULL && iRetryCount < 5);
   if (pChkPnt != NULL) {    

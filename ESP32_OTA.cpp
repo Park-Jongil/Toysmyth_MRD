@@ -32,7 +32,6 @@ void loop() {
 
   // Your main loop code here
 }
-
 */
 
 void performOTAUpdate() {
