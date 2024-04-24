@@ -59,7 +59,7 @@ const int   daylightOffset_sec = 0;     // summertime 게산을 위한 변수
 struct tm timeinfo;                     // ntp 동기화 후 저장되는 구조체
 
 /*기기 관련 정보 초기화*/
-String mac_addr = "D86595990013"; 
+String mac_addr = "D8659599000B"; 
 String zone_id;
 String machine_no;
 int valve;
@@ -290,8 +290,9 @@ void LTE_ON() {
 
 // LTE를 끌 때 함수(현재는 릴레이 스위치 LOW)
 void LTE_OFF() {
+  for(int i=0;i<10;i++) delay(1000);
   RSW_LOW();
-  delay(1000);
+  delay(5000);
 }
 
 // rs485 통신 종료 함수
@@ -401,7 +402,6 @@ void cal_TTS() {
   sprintf(szDateTime2,"%d-%02d-%02d %02d:%02d:%02d",AlarmTime.year(),AlarmTime.month(),AlarmTime.day(),AlarmTime.hour(),AlarmTime.minute(),AlarmTime.second());  
   sprintf(szBuffer,"Now=%s , TIME_TO_SLEEP=%s",szDateTime1,szDateTime2);
   MRD_Exception_to_Server(NULL,NULL,0x01,szBuffer,NULL,NULL);
-  for(int i=0;i<10;i++) delay(1000);
 
   Serial.print("Time difference in seconds: ");
   Serial.println(TIME_TO_SLEEP);
@@ -802,6 +802,7 @@ void setup() {
           // MRD_StatusData_to_Server_byDay();
           Night_Operation();
         }
+        
         if (volt < 11.7 && volt >= 11.2) {          // 저전력
           MRD_Exception_to_Server(NULL,NULL,0x02,"Mode :Low_battery()",NULL,NULL);
           Low_battery();

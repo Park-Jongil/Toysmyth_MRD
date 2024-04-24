@@ -165,7 +165,8 @@ void Battery_Read(void) {
       battery_value[0] = pChkPnt->Data[0];
       battery_value[1] = pChkPnt->Data[1];
       battery_value[2] = pChkPnt->Data[2];
-      if (pChkPnt->Cmd0==0xA4 && pChkPnt->Cmd1==0xE0) {
+      if (pChkPnt->Cmd0==0xA4 && (pChkPnt->Cmd1==0xE0 || pChkPnt->Cmd1==0x01 || pChkPnt->Cmd1==0x00) ) {
+        getbatterydata[4]=0xE0;
         Serial.println( "Battery_Read Success " );
         volt = Calculate_Volt(getbatterydata[5],getbatterydata[6],getbatterydata[7]);  
         break;
