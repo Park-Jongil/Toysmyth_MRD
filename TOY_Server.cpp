@@ -340,7 +340,7 @@ void MRD_DataValue_to_Server(int to_server,byte *pRecvData,char *OptionKey,char 
     serializeJson(post_jsondata, requestBody1);
     post_jsondata.clear();
     Serial.println("post_api(): requestBody1");
-    Serial.println(requestBody1);
+    Serial.println("\t" + requestBody1);
 
     // 0일 때 MIT, 토이스미스 두 서버 모두 전송
     if (to_server == 0) {
@@ -404,7 +404,7 @@ void MRD_Exception_to_Server(byte *pSendData,byte *pRecvData,int iLogLevel,char 
     }
     serializeJson(post_jsondata, requestBody);
     Serial.println("post_api(): Exception");
-    Serial.println(requestBody);
+    Serial.println("\t" + requestBody);
     post_jsondata.clear();
 
     http.begin("http://collect2.toysmythiot.com:5020/sewer_exception");

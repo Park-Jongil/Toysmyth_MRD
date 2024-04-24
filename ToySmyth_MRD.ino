@@ -417,7 +417,7 @@ void print_wakeup_reason() {
   switch (wakeup_reason)
   {
     case ESP_SLEEP_WAKEUP_EXT0     : Serial.println("Wakeup caused by external signal using RTC_IO");           
-                                     MRD_Exception_to_Server(NULL,NULL,0x02,"Wakeup Reason : RTC_IO",NULL,NULL);
+//                                     MRD_Exception_to_Server(NULL,NULL,0x02,"Wakeup Reason : RTC_IO",NULL,NULL);
                                      break;
     case ESP_SLEEP_WAKEUP_EXT1     : Serial.println("Wakeup caused by external signal using Reset_Button");     
                                      MRD_Exception_to_Server(NULL,NULL,0x02,"Wakeup Reason : Reset_Button",NULL,NULL);
@@ -430,7 +430,9 @@ void print_wakeup_reason() {
     case ESP_SLEEP_WAKEUP_ULP      : Serial.println("Wakeup caused by ULP program");                            
                                      MRD_Exception_to_Server(NULL,NULL,0x02,"Wakeup Reason : ULP program",NULL,NULL);
                                      break;
-    default                        : Serial.printf("Wakeup was not caused by deep sleep: %d\n", wakeup_reason); break;
+    default                        : Serial.printf("Wakeup was not caused by deep sleep: %d\n", wakeup_reason); 
+                                     MRD_Exception_to_Server(NULL,NULL,0x02,"Wakeup Reason : Reset_Button",NULL,NULL);
+                                     break;
   }
 }
 
@@ -637,7 +639,7 @@ void Normal_Operation() {
   do {
     delay(10*1000);
     getLocalTime(&timeinfo);
-  } while (!(2<=timeinfo.tm_min && timeinfo.tm_min<=10));   // 2 분에 작동하도록 루프 조건을 수정
+  } while (!(3<=timeinfo.tm_min && timeinfo.tm_min<=10));   // 2 분에 작동하도록 루프 조건을 수정
 
   get_api();                                      // api1
   Valve_Read();                                   // 노딕보드에서 밸브값 받아오기
@@ -672,7 +674,6 @@ void config_sleep_mode() {
 
   cal_TTS();
   
-  print_wakeup_reason();
   // LOW를 인식하면 깨어나게 합니다
   esp_sleep_enable_ext0_wakeup(gpio_num_t(wakeupPin), LOW);
   uint64_t bitmask = 1ULL << buttonPin;
@@ -695,7 +696,7 @@ void Display_DebugMessage(int iMode,unsigned char *szCommand, int iSize)
   }
   for(i=0;i<iSize;i+=0x10) {
     memset( szBuffer , 0x00 , sizeof(szBuffer) );
-    sprintf( szBuffer , "[%04X] : " , i );  // Offset Display
+    sprintf( szBuffer , "  [%04X] : " , i );  // Offset Display
     for(j=0;j<0x10;j++) {
       if (i+j<iSize) sprintf( szTemp , "%02X " , szCommand[i+j] );
        else sprintf( szTemp , "   " );
@@ -767,6 +768,8 @@ void setup() {
     restartESP();
   }
   EEPROM_Get_DeviceInformation();               // EEPROM 에서 ZoneID 와 MachineID 를 읽어온다.
+
+  print_wakeup_reason();                        // 깨어난 이유를 출력한다.
 
   init_Setting();                               // 초기화 부분 - pinMode(RSW), ETH Setting, ntp 설정
   LTE_ON();                                     // LTE 연결
