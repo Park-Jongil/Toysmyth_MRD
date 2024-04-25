@@ -4,12 +4,12 @@
 #include "UserDefine.h"
 
 extern HardwareSerial rs485; // rxtx mode 2 of 0,1,2
-extern int   iZoneID;
-extern int   iDeviceNumber;
-extern float volt;
+extern int    iZoneID;
+extern int    iDeviceNumber;
+extern int    valve;
+extern float  volt;
 
 Protocol_MRD  stSendMsg, stRecvMsg;
-
 //---------------------------------------------------------------------------
 // MRD protocol 9byte 번째 CheckSum 계산 함수.
 //---------------------------------------------------------------------------
@@ -193,7 +193,7 @@ void Battery_Read(void) {
 void Valve_Read() 
 {
   Protocol_MRD  stSendData,stRecvData,*pChkPnt=NULL;
-  int     iRetryCount,iChkRet;
+  int     iCount,iChkRet;
 
   stSendData.STX = 0x7C;
   stSendData.ZoneID = iZoneID;
@@ -206,17 +206,25 @@ void Valve_Read()
   stSendData.CheckData = cal_checksum((byte*)&stSendData,8);
 //  MRD_SendData((byte*)&stSendData);
 
-  iChkRet = MRD_Send_Receive((byte*)&stSendData,(byte*)&stRecvData);
-  if (iChkRet==0x00) {
-    pChkPnt = (Protocol_MRD*)&stRecvData;
-    memcpy(getvalvedata,(byte*)&stRecvData,0x09);
-    if (pChkPnt->Data[0]==0xb0 || pChkPnt->Data[0]==0xb1) {
-      Serial.println( "Valve_Read Success " );
+  iCount = 0;
+  do {
+    iChkRet = MRD_Send_Receive((byte*)&stSendData,(byte*)&stRecvData);
+    if (iChkRet==0x00) {
+      pChkPnt = (Protocol_MRD*)&stRecvData;
+      memcpy(getvalvedata,(byte*)&stRecvData,0x09);
+      if (pChkPnt->Cmd0==0xA3 && (pChkPnt->Cmd1==0xE0 || pChkPnt->Cmd1==0x01 || pChkPnt->Cmd1==0x00) ) {
+        if (pChkPnt->Data[0]==0xb0 || pChkPnt->Data[0]==0xb1) {
+          valve = pChkPnt->Data[0]==0xb0 ? 0x00 : 0x01;
+          Serial.println( "Valve_Read Success " );
+        }
+      }
     } else {
       Serial.print( "Valve_Read Error Code = " );
       Serial.println( iChkRet );
+      break;
     }
-  }
+  }while(++iCount < 5);   // iChkRet==0x00(데이터는 수신) 이면서 정상적인 값이 아닐경우 총 5회 반복수행.
+
   if (iChkRet==0x10) {                 // 무응답일 경우
     memset(getvalvedata,0x00,0x09);   // 데이터 초기화
   }

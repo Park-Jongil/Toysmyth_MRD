@@ -58,7 +58,14 @@ const long  gmtOffset_sec = 32400;      // 한국시간 계산을 위한 변수 
 const int   daylightOffset_sec = 0;     // summertime 게산을 위한 변수
 struct tm timeinfo;                     // ntp 동기화 후 저장되는 구조체
 
-/*기기 관련 정보 초기화*/
+//-----------------------------------------------------------------------------------------------
+// Firmware Version Check
+//-----------------------------------------------------------------------------------------------
+char  szFirmwareVersion[32] = "V2024.04.24_01";
+
+//-----------------------------------------------------------------------------------------------
+// 기기 관련 정보 초기화
+//-----------------------------------------------------------------------------------------------
 String mac_addr = "D8659599000B"; 
 String zone_id;
 String machine_no;
@@ -66,13 +73,18 @@ int valve;
 float volt;
 int   iZoneID;
 int   iDeviceNumber;
+char  szMacAddr[16] = { 0, };
 
+//-----------------------------------------------------------------------------------------------
 // SPIFFS 관련된 변수
+//-----------------------------------------------------------------------------------------------
 int   is_SPIFFS;
 File  WriteFile,ReadFile;
 RecordData_Status   stServerStatus;
 
-/*각각 배터리 체크를 위한 변환용 데이터, 요청 후 받은 배터리데이터, 요청 후 받 밸브데이터*/
+//-----------------------------------------------------------------------------------------------
+// 각각 배터리 체크를 위한 변환용 데이터, 요청 후 받은 배터리데이터, 요청 후 받 밸브데이터
+//-----------------------------------------------------------------------------------------------
 byte battery_value[3], getbatterydata[9], getvalvedata[9];
 
 //---------------------------------------------------------------------------
@@ -87,14 +99,21 @@ void  EEPROM_Get_DeviceInformation()
   int   iPosition=0x00;
   char  szBuffer[128];
 
-  EEPROM.begin(sizeof(int)+sizeof(int));
-  EEPROM.get(iPosition,iZoneID);     // Network 정보를 읽는다.
+  EEPROM.begin(sizeof(int)+sizeof(int)+16);
+  EEPROM.get(iPosition,iZoneID);          // iZoneID 정보를 읽는다.
   iPosition = sizeof(int);
-  EEPROM.get(iPosition,iDeviceNumber);     // 장비의 설정정보를 읽는다.
+  EEPROM.get(iPosition,iDeviceNumber);    // iDeviceNumber 
   sprintf(szBuffer,"%03d",iZoneID);
   zone_id = String(szBuffer);
   sprintf(szBuffer,"%03d",iDeviceNumber);
   machine_no = String(szBuffer);
+/*  
+  iPosition += sizeof(int);
+  EEPROM.get(iPosition,szMacAddr);        // MacAddress 정보를 읽는다.
+  if (szMacAddr[0]=='D' && szMacAddr[1]=='8') {   // 정상적인 Mac Address 라고하면 하드코딩된 주소를 대체한다. 
+    mac_addr = szMacAddr;
+  }
+*/  
 }
 
 //-------------------------------------------------------------------------------
@@ -104,11 +123,14 @@ void  EEPROM_Set_DeviceInformation()
 {
   int   iPosition=0x00;
 
-  EEPROM.begin(sizeof(int)+sizeof(int));
-  EEPROM.put(iPosition,iZoneID);     // Network 정보를 읽는다.
+  EEPROM.begin(sizeof(int)+sizeof(int)+16);
+  EEPROM.put(iPosition,iZoneID);            // iZoneID 정보를 저장한다
   iPosition = sizeof(int);
-  EEPROM.put(iPosition,iDeviceNumber);     // 장비의 설정정보를 읽는다.
+  EEPROM.put(iPosition,iDeviceNumber);      // iDeviceNumber 정보를 저장한다
+/*  
   iPosition = sizeof(int)+sizeof(int);
+  EEPROM.put(iPosition,szMacAddr);          // MacAddress 정보를 저장한다
+*/  
   EEPROM.commit();
 }
 
@@ -421,6 +443,7 @@ void print_wakeup_reason() {
                                      break;
     case ESP_SLEEP_WAKEUP_EXT1     : Serial.println("Wakeup caused by external signal using Reset_Button");     
                                      MRD_Exception_to_Server(NULL,NULL,0x02,"Wakeup Reason : Reset_Button",NULL,NULL);
+                                     restartESP();
                                      break;
     case ESP_SLEEP_WAKEUP_TIMER    : Serial.println("Wakeup caused by timer");                                  
                                      break;  //and this
@@ -431,7 +454,6 @@ void print_wakeup_reason() {
                                      MRD_Exception_to_Server(NULL,NULL,0x02,"Wakeup Reason : ULP program",NULL,NULL);
                                      break;
     default                        : Serial.printf("Wakeup was not caused by deep sleep: %d\n", wakeup_reason); 
-                                     MRD_Exception_to_Server(NULL,NULL,0x02,"Wakeup Reason : Reset_Button",NULL,NULL);
                                      break;
   }
 }
@@ -464,9 +486,14 @@ void Winter_Operation() {
 
   // 첫 부팅이 아닌 경우에 서버에 데이터를 보냄(첫 부팅은 이미 이전에 보냈음)
   if (!(bootCount == 1)) {
-    // MIT, 토이스미스 서버에 battery, valve값 송신
-    post_battery_to_server(0);
-    post_valve_to_server(0);
+    Battery_Read();                               // 노딕보드에서 배터리값 받아오기
+    Valve_Read();                                 // 노딕보드에서 밸브값 받아오기
+    if (getbatterydata[0]==0x00 && getvalvedata[0]==0x00) {   // 둘다 무응답 일경우
+      MRD_DataValue_to_Server(0,getvalvedata,NULL,NULL);
+    } else {
+      post_battery_to_server(0);                      // MIT, 토이스미스 서버에 battery값 송신
+      post_valve_to_server(0);                        // MIT, 토이스미스 서버에 valve값 송신
+    }
   }
   config_sleep_mode();
   Serial.println("Going to sleep now");
@@ -482,8 +509,19 @@ void Night_Operation() {
   unsigned long start_time, elapsed_time;
   Serial.println("Night Operation");
   
+  // 첫 부팅이 아닌 경우에 서버에 데이터를 보냄(첫 부팅은 이미 이전에 보냈음)
+  if (!(bootCount == 1)) {
+    Battery_Read();                               // 노딕보드에서 배터리값 받아오기
+    Valve_Read();                                 // 노딕보드에서 밸브값 받아오기
+    if (getbatterydata[0]==0x00 && getvalvedata[0]==0x00) {   // 둘다 무응답 일경우
+      MRD_DataValue_to_Server(0,getvalvedata,NULL,NULL);
+    } else {
+      post_battery_to_server(0);                      // MIT, 토이스미스 서버에 battery값 송신
+      post_valve_to_server(0);                        // MIT, 토이스미스 서버에 valve값 송신
+    }
+  }
+
   now = rtc.now();
-  
   switch (timeinfo.tm_hour) {
     case 21: ATime = now + TimeSpan(1, 0, 0, 0); break; //TIME_TO_SLEEP = ( 6 * Shour + (50 - timeinfo.tm_min) * Smin ); break;
     case 22: ATime = now + TimeSpan(1, 0, 0, 0); break; //TIME_TO_SLEEP = ( 6 * Shour + (50 - timeinfo.tm_min) * Smin ); break;
@@ -496,16 +534,6 @@ void Night_Operation() {
     default: Serial.println("Nitht Time Data Error");
   }
   AlarmTime = DateTime(ATime.year(), ATime.month(), ATime.day(), 5, 58, 0);
-  
-  // 첫 부팅이 아닌 경우에 서버에 데이터를 보냄(첫 부팅은 이미 이전에 보냈음)
-  if (!(bootCount == 1)) {
-    if (getbatterydata[0]==0x00 && getvalvedata[0]==0x00) {   // 둘다 무응답 일경우
-      MRD_DataValue_to_Server(0,getvalvedata,NULL,NULL);
-    } else {
-      post_battery_to_server(0);                      // MIT, 토이스미스 서버에 battery값 송신
-      post_valve_to_server(0);                        // MIT, 토이스미스 서버에 valve값 송신
-    }
-  }
 
   config_sleep_mode();
   Serial.println("Going to sleep now");
@@ -521,6 +549,8 @@ void Low_battery() {
   Serial.println("Low Battery State");
   
   if (!(bootCount == 1)) {
+    Battery_Read();                               // 노딕보드에서 배터리값 받아오기
+    Valve_Read();                                 // 노딕보드에서 밸브값 받아오기
     if (getbatterydata[0]==0x00 && getvalvedata[0]==0x00) {   // 둘다 무응답 일경우
       MRD_DataValue_to_Server(0,getvalvedata,NULL,NULL);
     } else {
@@ -563,6 +593,8 @@ void Discharge() {
   Serial.println("Discharge State");
   
   if (!(bootCount == 1)) {
+    Battery_Read();                               // 노딕보드에서 배터리값 받아오기
+    Valve_Read();                                 // 노딕보드에서 밸브값 받아오기
     if (getbatterydata[0]==0x00 && getvalvedata[0]==0x00) {   // 둘다 무응답 일경우
       MRD_DataValue_to_Server(0,getvalvedata,NULL,NULL);
     } else {
@@ -625,21 +657,24 @@ void Not_Yet() {
 //---------------------------------------------------------------------------
 void Normal_Operation() {
   Serial.println("Normal Operation");
-//  Battery_Read();                                 // 노딕보드에서 배터리값 받아오기
-//  Valve_Read();                                   // 노딕보드에서 밸브값 받아오기
 
-  if (getbatterydata[0]==0x00 && getvalvedata[0]==0x00) {   // 둘다 무응답 일경우
-    MRD_DataValue_to_Server(0,getvalvedata,NULL,NULL);
-  } else {
-    post_battery_to_server(0);                      // MIT, 토이스미스 서버에 battery값 송신
-    post_valve_to_server(0);                        // MIT, 토이스미스 서버에 valve값 송신
+  // 첫 부팅이 아닌 경우에 서버에 데이터를 보냄(첫 부팅은 이미 이전에 보냈음)
+  if (!(bootCount == 1)) {
+    Battery_Read();                               // 노딕보드에서 배터리값 받아오기
+    Valve_Read();                                 // 노딕보드에서 밸브값 받아오기
+    if (getbatterydata[0]==0x00 && getvalvedata[0]==0x00) {   // 둘다 무응답 일경우
+      MRD_DataValue_to_Server(0,getvalvedata,NULL,NULL);
+    } else {
+      post_battery_to_server(0);                      // MIT, 토이스미스 서버에 battery값 송신
+      post_valve_to_server(0);                        // MIT, 토이스미스 서버에 valve값 송신
+    }
   }
 
   setLocalTime();                                   // 계속 RTC 를 재설정할 필요는 없다.
   do {
     delay(10*1000);
     getLocalTime(&timeinfo);
-  } while (!(3<=timeinfo.tm_min && timeinfo.tm_min<=10));   // 2 분에 작동하도록 루프 조건을 수정
+  } while (!(2<=timeinfo.tm_min && timeinfo.tm_min<=10));   // 2 분에 작동하도록 루프 조건을 수정
 
   get_api();                                      // api1
   Valve_Read();                                   // 노딕보드에서 밸브값 받아오기
@@ -706,7 +741,6 @@ void Display_DebugMessage(int iMode,unsigned char *szCommand, int iSize)
   }
 }
 
-
 //---------------------------------------------------------------------------
 // 초기화 및 초기 설정
 void init_Setting() {
@@ -755,40 +789,33 @@ void init_Setting() {
     is_SPIFFS = true;
   }
   */
-
 }
 
 //---------------------------------------------------------------------------
 //---------------------------------------------------------------------------
 void setup() {
-  // put your setup code here, to run once:
-  // wakeup_reason이 ext1(Reset 버튼)인 경우에 일어나자마자 다시 재시작 해서 bootcount가 1인 경우의 알고리즘을 실행함.
-//  init_Setting();                               // 초기화 부분 - pinMode(RSW), ETH Setting, ntp 설정
-  if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT1) {
-    restartESP();
-  }
+// EEPROM 에서 ZoneID 와 MachineID 및 MacAddr 을 읽어온다.
   EEPROM_Get_DeviceInformation();               // EEPROM 에서 ZoneID 와 MachineID 를 읽어온다.
-
-  print_wakeup_reason();                        // 깨어난 이유를 출력한다.
 
   init_Setting();                               // 초기화 부분 - pinMode(RSW), ETH Setting, ntp 설정
   LTE_ON();                                     // LTE 연결
+  print_wakeup_reason();                        // 깨어난 이유를 출력한다. (LTE 가 활성화 되어야 한다.) 리셋버튼에 대한 처리를 한다.
+
   setLocalTime();                               // NTP 동기화
   get_device_config();                          // zone_id machine_no 받아오기(http 통신 - restAPI)
-  Battery_Read();                               // 노딕보드에서 배터리값 받아오기
-  Valve_Read();                                 // 노딕보드에서 밸브값 받아오기
 
   do {
   } while(!getLocalTime(&timeinfo)); 
 
   if (bootCount == 1) {                         // 첫 동작시에만 작동
+    Battery_Read();                               // 노딕보드에서 배터리값 받아오기
+    Valve_Read();                                 // 노딕보드에서 밸브값 받아오기
     if (getbatterydata[0]==0x00 && getvalvedata[0]==0x00) {   // 둘다 무응답 일경우
       MRD_DataValue_to_Server(0,getvalvedata,NULL,NULL);
     } else {
       post_battery_to_server(0);                      // MIT, 토이스미스 서버에 battery값 송신
       post_valve_to_server(0);                        // MIT, 토이스미스 서버에 valve값 송신
     }
-    //MRD_Exception_to_Server(NULL,NULL,0x02,"Device Restart..",NULL,NULL);
   } else {    // 향후 데이터를 항상 서버로 전송할지를 결정
   }
 
@@ -805,7 +832,6 @@ void setup() {
           // MRD_StatusData_to_Server_byDay();
           Night_Operation();
         }
-        
         if (volt < 11.7 && volt >= 11.2) {          // 저전력
           MRD_Exception_to_Server(NULL,NULL,0x02,"Mode :Low_battery()",NULL,NULL);
           Low_battery();

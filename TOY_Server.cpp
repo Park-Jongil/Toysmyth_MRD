@@ -14,6 +14,8 @@ extern float volt;
 extern int valve;;
 extern int   iZoneID;
 extern int   iDeviceNumber;
+extern char  szMacAddr[16];
+
 extern StaticJsonDocument<32768> get_jsondata; // 서버에서 받을 Json데이터의 크기 및 공간 확보
 extern StaticJsonDocument<1024> post_jsondata; // 서버에 보낼 Json데이터의 크기 및 공간 확
 //---------------------------------------------------------------------------
@@ -88,12 +90,14 @@ void get_device_config() {
     // 여기서 machine_no를 받아와 이후 서버 통신에 사용한다.
     tmp_machine_no = get_jsondata["machine_no"].as<String>();
 
-    if (tmp_zone_id==zone_id && tmp_machine_no==machine_no) {
+    if (tmp_zone_id==zone_id && tmp_machine_no==machine_no && String(szMacAddr)==mac_addr) {
     } else {
       zone_id = tmp_zone_id;
       machine_no = tmp_machine_no;
       iZoneID = zone_id.toInt();
       iDeviceNumber = machine_no.toInt();
+      memset(szMacAddr,0x00,16);
+      mac_addr.toCharArray(szMacAddr,mac_addr.length());
       EEPROM_Set_DeviceInformation();
     }
   }
@@ -261,7 +265,7 @@ void get_api() {
   }    
 }
 
-
+//---------------------------------------------------------------------------
 float Calculate_Volt(unsigned char Volt1,unsigned char Volt2,unsigned char Volt3)
 {
   float  fValue;
@@ -269,7 +273,6 @@ float Calculate_Volt(unsigned char Volt1,unsigned char Volt2,unsigned char Volt3
   fValue = String(Volt1-48).toFloat()*10 + String(Volt2-48).toFloat() + (String(Volt3-48).toFloat()/10.0); 
   return(fValue);
 }
-
 
 //---------------------------------------------------------------------------
 // 서버 전송 관련 함수
