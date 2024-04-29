@@ -7,17 +7,49 @@
 //-----------------------------------------------------------------------------------------------
 // Firmware Version Check
 //-----------------------------------------------------------------------------------------------
-String  szFirmwareVersion = "V2024.04.24_01";
-String  PRODUCT_CODE = "SWMRD_Z01";
-  
+String  szFirmwareVersion = "20240425_01";
+String  PRODUCT_CODE = "TOYS_MRD_001";
+ 
 //-----------------------------------------------------------------------------------------------
-extern StaticJsonDocument<32768> get_jsondata; // 서버에서 받을 Json데이터의 크기 및 공간 확보
+extern  StaticJsonDocument<32768> get_jsondata;     // 서버에서 받을 Json데이터의 크기 및 공간 확보
+extern  StaticJsonDocument<32768> post_jsondata;    // 서버에서 받을 Json데이터의 크기 및 공간 확보
+extern  String mac_addr;
+
+
+//---------------------------------------------------------------------------
+// 서버로 OTA 에 대한 결과를 전송하는 함수
+//---------------------------------------------------------------------------
+void Toysmyth_FirmwareUpdate_to_Server(String LastVersion,int iRetCode,String szComment)
+{
+  HTTPClient http;
+  String requestBody;
+  
+  try {
+    post_jsondata.clear();
+    post_jsondata["product_id"] = PRODUCT_CODE;
+    post_jsondata["mac"] = mac_addr;
+    post_jsondata["current_ver"] = szFirmwareVersion;
+    post_jsondata["update_ver"] = LastVersion;
+    post_jsondata["result"] = iRetCode;
+    post_jsondata["comment"] = szComment;
+    serializeJson(post_jsondata, requestBody);
+    Serial.println("post_api(): Firmware OTA ");
+    Serial.println("\t" + requestBody);
+    post_jsondata.clear();
+    http.begin("http://toysmyth-api.toysmythiot.com:8000/v1/MIT/insert_log");
+    http.addHeader("Content-Type", "Application/json");
+    int httpResponseCode = http.POST(requestBody);
+    http.end();
+  } catch(String error) {
+  }
+  delay(1000);
+}
 
 
 //---------------------------------------------------------------------------
 // Construct the full URL for the firmware binary
 //---------------------------------------------------------------------------
-void performOTAUpdate(String szUpdateURL) {
+void performOTAUpdate(String szUpdateURL,String szLastVerion) {
   HTTPClient http;
   http.begin(szUpdateURL);
 
@@ -46,6 +78,7 @@ void performOTAUpdate(String szUpdateURL) {
       // End the update process
       if (Update.end(true)) {
         Serial.println("OTA update complete. Rebooting...");
+        Toysmyth_FirmwareUpdate_to_Server(szLastVerion,0x00,"Success");
         ESP.restart();
       } else {
         Serial.println("Error during OTA update. Please try again.");
@@ -74,29 +107,30 @@ void Toysmyth_Check_FirmwareUpdate() {
   Serial.println("Toysmyth_Check_FirmwareUpdate");
   get_jsondata.clear();
   HTTPClient http;
-  http.begin("http://collect2.toysmythiot.com:5020/getLastVersion=" + PRODUCT_CODE);
+  http.begin("http://toysmyth-api.toysmythiot.com:8000/v1/MIT/get_vercheck?product_id=" + PRODUCT_CODE);
 
   int httpResponseCode = http.GET();
+  Serial.printf("  Response Code = %d\n",httpResponseCode);
   if (httpResponseCode > 0) {
     String responseBody = http.getString();
-    Serial.printf("  Response Code = %d\n",httpResponseCode);
-    Serial.printf("  Response Body = %s\n",responseBody);
-    
+    Serial.printf("  Response Body = %s\n",responseBody.c_str());
+//    String  retBody = responseBody.substring(1,responseBody.length()-2);
     // get_jsondata에 responseBody deserialize해서 적용
     deserializeJson(get_jsondata, responseBody);
-    szLastVerion = get_jsondata["LastVerion"].as<String>();
-    szUpdateURL = get_jsondata["UpdateURL"].as<String>();
-    Serial.printf("  Firmware Current Version  = %s\n",szFirmwareVersion);
-    Serial.printf("  Firmware Check Version  = %s\n",szLastVerion);
+    szLastVerion = get_jsondata["VERSION"].as<String>();
+    szUpdateURL = get_jsondata["BIN_PATH"].as<String>();
+    Serial.printf("  Firmware Current Version  = %s\n",szFirmwareVersion.c_str());
+    Serial.printf("  Firmware Check Version  = %s\n",szLastVerion.c_str());
     if (szFirmwareVersion != szLastVerion) {    // 현재 펌웨어버전과 다르다면
-      Serial.printf("  Firmware Update URL = %s\n",szUpdateURL);
-      for(int i=0;i<3;i++) performOTAUpdate(szUpdateURL);     // 총 5번의 업데이트를 시도한다.
+      Serial.printf("  Firmware Update URL = %s\n",szUpdateURL.c_str());
+      for(int i=0;i<3;i++) performOTAUpdate(szUpdateURL,szLastVerion);     // 총 5번의 업데이트를 시도한다.
       Serial.printf("  Firmware Update Failure\n");
+      Toysmyth_FirmwareUpdate_to_Server(szLastVerion,0x01,"Firmware Update Failure");
     }
   }
   else {
     int SecondhttpResponseCode = http.GET();
-    Serial.println(SecondhttpResponseCode);
+    Serial.printf("ErrorCode #2 = %d\n",SecondhttpResponseCode);
   }
   http.end();
 }

@@ -86,6 +86,7 @@ byte battery_value[3], getbatterydata[9], getvalvedata[9];
 //---------------------------------------------------------------------------
 //---------------------------------------------------------------------------
 extern void WiFiEvent(WiFiEvent_t event);
+extern void Toysmyth_Check_FirmwareUpdate(); 
 
 //-------------------------------------------------------------------------------
 // EEPROM 에 저장되어 있는 설정값을 획득한다. 
@@ -103,13 +104,11 @@ void  EEPROM_Get_DeviceInformation()
   zone_id = String(szBuffer);
   sprintf(szBuffer,"%03d",iDeviceNumber);
   machine_no = String(szBuffer);
-/*  
   iPosition += sizeof(int);
   EEPROM.get(iPosition,szMacAddr);        // MacAddress 정보를 읽는다.
   if (szMacAddr[0]=='D' && szMacAddr[1]=='8') {   // 정상적인 Mac Address 라고하면 하드코딩된 주소를 대체한다. 
     mac_addr = szMacAddr;
   }
-*/  
 }
 
 //-------------------------------------------------------------------------------
@@ -123,10 +122,8 @@ void  EEPROM_Set_DeviceInformation()
   EEPROM.put(iPosition,iZoneID);            // iZoneID 정보를 저장한다
   iPosition = sizeof(int);
   EEPROM.put(iPosition,iDeviceNumber);      // iDeviceNumber 정보를 저장한다
-/*  
   iPosition = sizeof(int)+sizeof(int);
   EEPROM.put(iPosition,szMacAddr);          // MacAddress 정보를 저장한다
-*/  
   EEPROM.commit();
 }
 
@@ -802,6 +799,9 @@ void setup() {
 
   do {
   } while(!getLocalTime(&timeinfo)); 
+  Toysmyth_Check_FirmwareUpdate(); 
+
+
 
   if (bootCount == 1) {                         // 첫 동작시에만 작동
     Battery_Read();                               // 노딕보드에서 배터리값 받아오기

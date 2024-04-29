@@ -90,14 +90,14 @@ void get_device_config() {
     // 여기서 machine_no를 받아와 이후 서버 통신에 사용한다.
     tmp_machine_no = get_jsondata["machine_no"].as<String>();
 
-    if (tmp_zone_id==zone_id && tmp_machine_no==machine_no) {   //}  && String(szMacAddr)==mac_addr) {
+    if (tmp_zone_id==zone_id && tmp_machine_no==machine_no && String(szMacAddr)==mac_addr) {
     } else {
       zone_id = tmp_zone_id;
       machine_no = tmp_machine_no;
       iZoneID = zone_id.toInt();
       iDeviceNumber = machine_no.toInt();
-//      memset(szMacAddr,0x00,16);
-//      mac_addr.toCharArray(szMacAddr,mac_addr.length());
+      memset(szMacAddr,0x00,16);
+      mac_addr.toCharArray(szMacAddr,mac_addr.length());
       EEPROM_Set_DeviceInformation();
     }
   }
