@@ -65,6 +65,7 @@ void WiFiEvent(WiFiEvent_t event)
 void get_device_config() {
   String tmp_zone_id;
   String tmp_machine_no;
+  char  szBuffer[512];
 
   // jsondata를 비워준다.
   get_jsondata.clear();
@@ -99,6 +100,8 @@ void get_device_config() {
       memset(szMacAddr,0x00,16);
       mac_addr.toCharArray(szMacAddr,mac_addr.length());
       EEPROM_Set_DeviceInformation();
+      sprintf(szBuffer,"EEPROM Mac Address Save : %s",szMacAddr);     // EEPROM 에 현재의 Mac Address 를 저장한다. (향후 펌웨어 업데이트시 유지를 위해)
+      MRD_Exception_to_Server(NULL,NULL,0x02,szBuffer,NULL,NULL);
     }
   }
   else {
