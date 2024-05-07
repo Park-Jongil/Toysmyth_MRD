@@ -737,8 +737,29 @@ void Display_DebugMessage(int iMode,unsigned char *szCommand, int iSize)
 //---------------------------------------------------------------------------
 // 초기화 및 초기 설정
 void init_Setting() {
+  unsigned char   nData;
+
   // 시리얼 통신 시작
   Serial_Setting();                             
+  for(int i=0;i<5;i++) {
+    Serial.printf("Wait %d Second....[ Press 'e' key to EEPROM reset ]\n",5-i);
+    delay(1000);
+  }
+  if (Serial.available() > 0) {     // 시리얼 버퍼에 내용이 존재한다면
+    while (Serial.available() > 0) {
+      nData = Serial.read();
+      if (nData=='E' || nData=='e') {
+        Serial.print(" InitMode : EEPROM Clear !!!\n");
+        Serial.flush();
+        iZoneID = 0x00;
+        iDeviceNumber = 0x00;
+        memset(szMacAddr,0x00,sizeof(szMacAddr));      
+        EEPROM_Set_DeviceInformation();
+        ESP.restart();   
+        break;
+      }
+    }
+  }
 
   // rs485 통신 시작
   rs485_Setting();
