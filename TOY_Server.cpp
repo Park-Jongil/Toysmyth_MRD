@@ -98,7 +98,7 @@ void get_device_config() {
       iZoneID = zone_id.toInt();
       iDeviceNumber = machine_no.toInt();
       memset(szMacAddr,0x00,16);
-      mac_addr.toCharArray(szMacAddr,mac_addr.length());
+      mac_addr.toCharArray(szMacAddr,mac_addr.length()+1);
       EEPROM_Set_DeviceInformation();
       sprintf(szBuffer,"EEPROM Mac Address Save : %s",szMacAddr);     // EEPROM 에 현재의 Mac Address 를 저장한다. (향후 펌웨어 업데이트시 유지를 위해)
       MRD_Exception_to_Server(NULL,NULL,0x02,szBuffer,NULL,NULL);
