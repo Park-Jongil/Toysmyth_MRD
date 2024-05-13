@@ -72,6 +72,12 @@ int   iDeviceNumber;
 char  szMacAddr[16] = { 0, };
 
 //-----------------------------------------------------------------------------------------------
+// ESP32_OTA.cpp 에서 선언된 펌웨어 버전
+//-----------------------------------------------------------------------------------------------
+extern  String  szFirmwareVersion;
+
+
+//-----------------------------------------------------------------------------------------------
 // SPIFFS 관련된 변수
 //-----------------------------------------------------------------------------------------------
 int   is_SPIFFS;
@@ -280,7 +286,7 @@ void LTE_ON() {
   getLocalTime(&timeinfo);
   sprintf(szDateTime,"%d-%02d-%02d %02d:%02d:%02d",1900+timeinfo.tm_year,timeinfo.tm_mon+1,timeinfo.tm_mday,timeinfo.tm_hour,timeinfo.tm_min,timeinfo.tm_sec);  
   iChkDay = ((timeinfo.tm_year+1900)*365+(timeinfo.tm_mon+1)*31 + timeinfo.tm_mday) * 24 + timeinfo.tm_hour;
-  sprintf(szBuffer,"NTC_Time:[%s]",szDateTime);
+  sprintf(szBuffer,"NTC_Time:[%s] Firmware Version = %s",szDateTime,szFirmwareVersion);
   Serial.println(szBuffer);                     // 로그용
   MRD_Exception_to_Server(NULL,NULL,0x01,szBuffer,NULL,NULL);
 
@@ -822,8 +828,6 @@ void setup() {
   } while(!getLocalTime(&timeinfo)); 
   Toysmyth_Check_FirmwareUpdate(); 
 
-
-
   if (bootCount == 1) {                         // 첫 동작시에만 작동
     Battery_Read();                               // 노딕보드에서 배터리값 받아오기
     Valve_Read();                                 // 노딕보드에서 밸브값 받아오기
@@ -849,22 +853,22 @@ void setup() {
           // MRD_StatusData_to_Server_byDay();
           Night_Operation();
         }
-        if (volt < 11.7 && volt >= 11.2) {          // 저전력
-          MRD_Exception_to_Server(NULL,NULL,0x02,"Mode :Low_battery()",NULL,NULL);
-          Low_battery();
-          break;
-        } else if (volt > 0 && volt < 11.2) {       // 방전
+        if (0 < volt && volt < 11.2) {                  // 방전
           MRD_Exception_to_Server(NULL,NULL,0x02,"Mode :Discharge()",NULL,NULL);
           Discharge();
           break;
-        } else {                                    // 정상작동 or 에러
-          if (10 <= timeinfo.tm_min && timeinfo.tm_min < 56) {               // 56분 이전
+        } else if (11.2 <= volt && volt <= 11.7) {      // 저전력
+          MRD_Exception_to_Server(NULL,NULL,0x02,"Mode :Low_battery()",NULL,NULL);
+          Low_battery();
+          break;
+        } else {                                    
+          if (10 <= timeinfo.tm_min && timeinfo.tm_min < 56) {   // 56분 이전            
             MRD_Exception_to_Server(NULL,NULL,0x01,"Mode :Not_Yet()",NULL,NULL);
             Not_Yet();
             break;
-          } else {
+          } else {                                      // 정상동작
             MRD_Exception_to_Server(NULL,NULL,0x01,"Mode :Normal_Operation()",NULL,NULL);
-            Normal_Operation();                       // 58분 이후 정상동작
+            Normal_Operation();                     
             break;
           }
         }
