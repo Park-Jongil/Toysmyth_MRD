@@ -28,8 +28,13 @@ unsigned long long int TIME_TO_SLEEP = 0;
 //const unsigned long long int Sday = 86400; // 24 * 60 * 60 == 24 hour
 //const unsigned long long int Shour = 3600; // 60 * 60      == 60 min
 //const unsigned long long int Smin = 60;    // 60           == 1min
+
+//-----------------------------------------------------------------------------------------------
 // deepsleep 동안 사라지지 않는 변수
+//-----------------------------------------------------------------------------------------------
 RTC_DATA_ATTR int bootCount = 0;
+RTC_DATA_ATTR DateTime  CheckSleepTime;
+RTC_DATA_ATTR DateTime  CheckAlarmTime;
 
 /*랜선 관련 초기화 및 정의*/
 #include <Arduino.h>       //for ethernet
@@ -429,6 +434,28 @@ void cal_TTS() {
 }
 
 //---------------------------------------------------------------------------
+// DeepSleep 관련 함수
+// deepsleep 하는 시간을 적용시키고 자는 시간 일어나는 이유를 로그로 출력함.
+//---------------------------------------------------------------------------
+void config_sleep_mode() {
+  rtc.setAlarm1(AlarmTime, DS3231_A1_Date);
+  Serial.print("Current time: ");
+  now = rtc.now();
+  Serial.println(now.timestamp(DateTime::TIMESTAMP_FULL));
+  Serial.println(now.day());
+
+  cal_TTS();
+  
+  CheckSleepTime = now;
+  CheckAlarmTime = AlarmTime;
+
+  // LOW를 인식하면 깨어나게 합니다
+  esp_sleep_enable_ext0_wakeup(gpio_num_t(wakeupPin), LOW);
+  uint64_t bitmask = 1ULL << buttonPin;
+  esp_sleep_enable_ext1_wakeup(bitmask, ESP_EXT1_WAKEUP_ANY_HIGH);
+}
+
+//---------------------------------------------------------------------------
 //---------------------------------------------------------------------------
 void print_wakeup_reason() {
   // esp32 내장함수
@@ -694,26 +721,6 @@ void Normal_Operation() {
   esp_deep_sleep_start();                         // DeepSleep
 }
 
-
-//---------------------------------------------------------------------------
-// DeepSleep 관련 함수
-// deepsleep 하는 시간을 적용시키고 자는 시간 일어나는 이유를 로그로 출력함.
-//---------------------------------------------------------------------------
-void config_sleep_mode() {
-  rtc.setAlarm1(AlarmTime, DS3231_A1_Date);
-  Serial.print("Current time: ");
-  now = rtc.now();
-  Serial.println(now.timestamp(DateTime::TIMESTAMP_FULL));
-  Serial.println(now.day());
-
-  cal_TTS();
-  
-  // LOW를 인식하면 깨어나게 합니다
-  esp_sleep_enable_ext0_wakeup(gpio_num_t(wakeupPin), LOW);
-  uint64_t bitmask = 1ULL << buttonPin;
-  esp_sleep_enable_ext1_wakeup(bitmask, ESP_EXT1_WAKEUP_ANY_HIGH);
-}
-
 //---------------------------------------------------------------------------
 // MRD 프로토콜을 화면에 출력하기 위하여 만들어진 함수
 //---------------------------------------------------------------------------
@@ -792,6 +799,26 @@ void init_Setting() {
   // 릴레이 스위치 gpoi 출력 설정
   pinMode(ROUTER_CONTROL, OUTPUT);
  
+// DeepSleep 이벤트가 아닌 비정상적으로 깨어났을 경우에 예외처리 
+  now = rtc.now();
+
+  TimeSpan timeDifference = now - CheckSleepTime;       // 슬립들어가기전 시간을 기록
+  long TIME_TO_SLEEP = timeDifference.totalseconds();
+  if (TIME_TO_SLEEP < 120) {        // 정상처리후 2분이내 다시 깨어났다면 다시 DeepSleep 모드로 들어가야 한다.
+    timeDifference = CheckAlarmTime - now;              // 다시 깨어날 시간과 현재의 차이
+    TIME_TO_SLEEP = timeDifference.totalseconds();
+    if (TIME_TO_SLEEP > 120) {      // 다시 깨어날때까지의 시간이 2분은 넘어야 딥슬립 모드로 들어간다.
+      rtc.setAlarm1(CheckAlarmTime, DS3231_A1_Date);
+      CheckSleepTime = now;
+      esp_sleep_enable_ext0_wakeup(gpio_num_t(wakeupPin), LOW);
+      uint64_t bitmask = 1ULL << buttonPin;
+      esp_sleep_enable_ext1_wakeup(bitmask, ESP_EXT1_WAKEUP_ANY_HIGH);
+      Serial.println("Going to sleep now ");
+      Serial.flush();
+      esp_deep_sleep_start();                         // DeepSleep
+    }  
+  }
+
   // 이벤트 발생마다(인터넷 상태마다) 인터럽트 식으로 괄호 안의 함수를 실행. esp32 기본 내장 함수
   WiFi.onEvent(WiFiEvent);
   
