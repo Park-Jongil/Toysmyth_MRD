@@ -121,11 +121,13 @@ void Toysmyth_Check_FirmwareUpdate() {
     szUpdateURL = get_jsondata["BIN_PATH"].as<String>();
     Serial.printf("  Firmware Current Version  = %s\n",szFirmwareVersion.c_str());
     Serial.printf("  Firmware Check Version  = %s\n",szLastVerion.c_str());
-    if (szFirmwareVersion != szLastVerion) {    // 현재 펌웨어버전과 다르다면
-      Serial.printf("  Firmware Update URL = %s\n",szUpdateURL.c_str());
-      for(int i=0;i<3;i++) performOTAUpdate(szUpdateURL,szLastVerion);     // 총 5번의 업데이트를 시도한다.
-      Serial.printf("  Firmware Update Failure\n");
-      Toysmyth_FirmwareUpdate_to_Server(szLastVerion,0x01,"Firmware Update Failure");
+    if (szLastVerion != NULL && szLastVerion.length() >  7) {
+      if (szFirmwareVersion != szLastVerion) {    // 현재 펌웨어버전과 다르다면
+        Serial.printf("  Firmware Update URL = %s\n",szUpdateURL.c_str());
+        for(int i=0;i<3;i++) performOTAUpdate(szUpdateURL,szLastVerion);     // 총 5번의 업데이트를 시도한다.
+        Serial.printf("  Firmware Update Failure\n");
+        Toysmyth_FirmwareUpdate_to_Server(szLastVerion,0x01,"Firmware Update Failure");
+      }
     }
   }
   else {
