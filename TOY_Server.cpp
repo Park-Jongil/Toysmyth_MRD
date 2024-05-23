@@ -72,16 +72,13 @@ void get_device_config() {
 
   HTTPClient http;
   http.begin("http://www.ocms.kr/RestAPI/api3?mac_addr=" + mac_addr);
-  Serial.println("get dev data");
 
+  Serial.println("Get Zone_ID,Machine_No by MacAddress");
   int httpResponseCode = http.GET();
-  Serial.println(httpResponseCode);
-
   if (httpResponseCode > 0) {
     String responseBody = http.getString();
-    Serial.println("get_api(): httpResponseCode");
-    Serial.println("get_api(): http.getString");
-    Serial.println(responseBody);
+    Serial.printf("  Response Code = %d\n",httpResponseCode);
+    Serial.printf("  Response Body = %s\n",responseBody.c_str());
     
     // get_jsondata에 responseBody deserialize해서 적용
     deserializeJson(get_jsondata, responseBody);
@@ -91,20 +88,23 @@ void get_device_config() {
     // 여기서 machine_no를 받아와 이후 서버 통신에 사용한다.
     tmp_machine_no = get_jsondata["machine_no"].as<String>();
 
-    if (tmp_zone_id==zone_id && tmp_machine_no==machine_no && String(szMacAddr)==mac_addr) {
+    if (tmp_zone_id=="null" || tmp_machine_no=="null") {
+      Serial.printf("  DeviceCode(MAC Addr) Not Define = %s\n",mac_addr.c_str());
     } else {
-      zone_id = tmp_zone_id;
-      machine_no = tmp_machine_no;
-      iZoneID = zone_id.toInt();
-      iDeviceNumber = machine_no.toInt();
-      memset(szMacAddr,0x00,16);
-      mac_addr.toCharArray(szMacAddr,mac_addr.length()+1);
-      EEPROM_Set_DeviceInformation();
-      sprintf(szBuffer,"EEPROM Mac Address Save : %s",szMacAddr);     // EEPROM 에 현재의 Mac Address 를 저장한다. (향후 펌웨어 업데이트시 유지를 위해)
-      MRD_Exception_to_Server(NULL,NULL,0x02,szBuffer,NULL,NULL);
+      if (tmp_zone_id==zone_id && tmp_machine_no==machine_no && String(szMacAddr)==mac_addr) {
+      } else {
+        zone_id = tmp_zone_id != NULL ? tmp_zone_id : "000";
+        machine_no = tmp_machine_no != NULL ? tmp_machine_no : "000";
+        iZoneID = zone_id.toInt();
+        iDeviceNumber = machine_no.toInt();
+        memset(szMacAddr,0x00,16);
+        mac_addr.toCharArray(szMacAddr,mac_addr.length()+1);
+        EEPROM_Set_DeviceInformation();
+        sprintf(szBuffer,"EEPROM Mac Address Save : %s",szMacAddr);     // EEPROM 에 현재의 Mac Address 를 저장한다. (향후 펌웨어 업데이트시 유지를 위해)
+        MRD_Exception_to_Server(NULL,NULL,0x02,szBuffer,NULL,NULL);
+      }
     }
-  }
-  else {
+  } else {
     int SecondhttpResponseCode = http.GET();
     Serial.println(SecondhttpResponseCode);
   }
