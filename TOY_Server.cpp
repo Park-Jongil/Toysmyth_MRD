@@ -92,6 +92,7 @@ void get_device_config() {
       Serial.printf("  DeviceCode(MAC Addr) Not Define = %s\n",mac_addr.c_str());
     } else {
       if (tmp_zone_id==zone_id && tmp_machine_no==machine_no && String(szMacAddr)==mac_addr) {
+        Serial.printf("  EEPROM Not Changed = %s\n",mac_addr.c_str());
       } else {
         zone_id = tmp_zone_id != NULL ? tmp_zone_id : "000";
         machine_no = tmp_machine_no != NULL ? tmp_machine_no : "000";
