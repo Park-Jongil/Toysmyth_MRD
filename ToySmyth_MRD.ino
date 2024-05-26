@@ -291,7 +291,8 @@ void LTE_ON() {
   getLocalTime(&timeinfo);
   sprintf(szDateTime,"%d-%02d-%02d %02d:%02d:%02d",1900+timeinfo.tm_year,timeinfo.tm_mon+1,timeinfo.tm_mday,timeinfo.tm_hour,timeinfo.tm_min,timeinfo.tm_sec);  
   iChkDay = ((timeinfo.tm_year+1900)*365+(timeinfo.tm_mon+1)*31 + timeinfo.tm_mday) * 24 + timeinfo.tm_hour;
-  sprintf(szBuffer,"NTC_Time:[%s] Firmware Version = %s",szDateTime,szFirmwareVersion);
+  if (bootCount%10==1) sprintf(szBuffer,"NTC_Time:[%s] Firmware Version = %s",szDateTime,szFirmwareVersion);
+   else sprintf(szBuffer,"NTC_Time:[%s]",szDateTime);
   Serial.println(szBuffer);                     // 로그용
   MRD_Exception_to_Server(NULL,NULL,0x01,szBuffer,NULL,NULL);
 
