@@ -7,14 +7,13 @@
 //-----------------------------------------------------------------------------------------------
 // Firmware Version Check
 //-----------------------------------------------------------------------------------------------
-String  szFirmwareVersion = "20240513_01";
 String  PRODUCT_CODE = "TOYS_MRD_001";
+String  szFirmwareVersion = "20240523_01";
  
 //-----------------------------------------------------------------------------------------------
 extern  StaticJsonDocument<32768> get_jsondata;     // 서버에서 받을 Json데이터의 크기 및 공간 확보
 extern  StaticJsonDocument<32768> post_jsondata;    // 서버에서 받을 Json데이터의 크기 및 공간 확보
 extern  String mac_addr;
-
 
 //---------------------------------------------------------------------------
 // 서버로 OTA 에 대한 결과를 전송하는 함수
@@ -119,14 +118,16 @@ void Toysmyth_Check_FirmwareUpdate() {
     deserializeJson(get_jsondata, responseBody);
     szLastVerion = get_jsondata["VERSION"].as<String>();
     szUpdateURL = get_jsondata["BIN_PATH"].as<String>();
-    Serial.printf("  Firmware Current Version  = %s\n",szFirmwareVersion.c_str());
-    Serial.printf("  Firmware Check Version  = %s\n",szLastVerion.c_str());
+    Serial.printf("  Firmware Current Version   = %s\n",szFirmwareVersion.c_str());
+    Serial.printf("  Firmware Updatable Version = %s\n",szLastVerion.c_str());
     if (szLastVerion != NULL && szLastVerion.length() >  7) {
-      if (szFirmwareVersion != szLastVerion) {    // 현재 펌웨어버전과 다르다면
+      if (szFirmwareVersion < szLastVerion) {    // 현재 펌웨어버전과 다르다면
         Serial.printf("  Firmware Update URL = %s\n",szUpdateURL.c_str());
         for(int i=0;i<3;i++) performOTAUpdate(szUpdateURL,szLastVerion);     // 총 5번의 업데이트를 시도한다.
         Serial.printf("  Firmware Update Failure\n");
         Toysmyth_FirmwareUpdate_to_Server(szLastVerion,0x01,"Firmware Update Failure");
+      } else {
+        Serial.printf("  Current version is new.\n");
       }
     }
   }
